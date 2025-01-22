@@ -16,10 +16,14 @@ String Pool은 JVM의 Heap 메모리 영역에 위치합니다.
 문자열은 불변(Immutable)이므로 String Pool에 저장된 문자열은 수정되지 않습니다.
 
 ## 메모리에 어떻게 저장될까?
-String str1 = "madplay";  //"madplay" 라는 문자열 리터럴이 String Pool에 저장될 것이고 str1은 String Pool의 "madplay"를 참조합니다.
-String str2 = "madplay";  //"madplay"는 이미 String Pool에 존재하므로, 새로운 객체를 생성하지 않고 String Pool의 "madplay"를 참조합니다.
-String str3 = new String("madplay"); //new 키워드를 사용했기 때문에 Heap 메모리에 새로운 String 객체가 생성됩니다.
-String str4 = new String("madplay");
-str1 = str2;
+String str1 = "madplay";  //"madplay" 라는 문자열 리터럴이 String Pool에 저장될 것이고 str1은 String Pool의 "madplay"를 참조합니다.  
+String str2 = "madplay";  //"madplay"는 이미 String Pool에 존재하므로, 새로운 객체를 생성하지 않고 String Pool의 "madplay"를 참조합니다.  
+String str3 = new String("madplay");  //new 키워드를 사용했기 때문에 Heap 메모리에 새로운 String 객체가 생성됩니다.  
+String str4 = new String("madplay");  //new 키워드를 사용했기 때문에 Heap 메모리에 새로운 String 객체가 생성됩니다.  
+str1 = str2; //str1은 단순히 str2가 참조하고 있는 String Pool의 "madplay"를 참조합니다.  
 
+str3, str4는 힙메모리에 새로운 객체를 생성하고 이 객체의 값은 String Pool의 "madplay"를 참조합니다.
 
+String str5 = new String("madplay1") //이렇게 했을 경우 "madplay1" 문자열 리터럴이 String Pool에 저장되고 별도의 String 객체도 생성됩니다. 그리고 String 객체는 String Pool에 있는 "madplay1" 값을 참조합니다.
+
+결론적으로는 문자열 리터럴을 생성하면 String Pool에 모두 저장됩니다.

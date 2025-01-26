@@ -27,3 +27,10 @@ str3, str4는 힙메모리에 새로운 객체를 생성하고 이 객체의 값
 String str5 = new String("madplay1") //이렇게 했을 경우 "madplay1" 문자열 리터럴이 String ConstantPool에 저장되고 별도의 String 객체도 생성됩니다. 그리고 String 객체는 String ConstantPool에 있는 "madplay1" 값을 참조합니다.
 
 결론적으로는 문자열 리터럴을 생성하면 String ConstantPool에 모두 저장됩니다.
+
+
+### String에 + 연산을 했을 경우 생길 수 있는 문제가 있는가?
+Java의 String 객체는 불변이므로 문자열을 + 연산자로 연결할 때마다 새로운 String 객체가 생성됩니다.
+
+예를 들어 반복문 안에 여러번 +연산을 수행하면 메모리 사용량이 증가하고 GC가 자주 일어나면서 성능이 떨어질 수 있습니다.
+문자열을 반복적으로 연결해야하는 상황이라면, StringBuilder나 StringBuffer와 같은 가변 객체를 사용해야합니다.

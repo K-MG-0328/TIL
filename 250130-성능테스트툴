@@ -1,0 +1,93 @@
+성능 테스트
+
+부하테스트 툴 
+nGrinder, Jmeter, k6
+
+Throughput - 처리량
+TPS(Transaction Per Seconds) - 1초당 작업량
+RPS(Request Per Second) - 1초당 요청 수
+TPS == RPS 는 같다고 생각해도 무방하다.
+
+Latency - 지연  시간(요청에 대한 응답 시간)
+
+부하테스트 전체적인 흐름
+
+부하테스트 목표 설정하기 
+Throughput 과 Latency 를 활용해 설정
+예시) 목표 Throughput, 평균 Latency 설정
+
+현재 시스템이 어느 정도 트래픽까지 견딜 수 있는지 부하 테스트 진행
+
+병목 지점 파악 후 성능 개선하기
+병목 지점의 Througput이 곧 전체 Throughput이다.
+
+개선한 시스템이 어느 정도 트래픽까지 견딜 수 있는 지 부하 테스트 진행 
+
+목표 Throughput, Latency가 될 때까지 병목 지점  파악 후 부하테스트 반복   진행
+
+
+부하 테스트 시 주의점
+
+적절한 부하 테스트 시간
+1분 간격으로 기록되는 모니터링 도구를 가지고 정확하게 성능을 측정하려면 최소 5분간의 부하테스트는 진행해야 한다. 그래야 일관된 결과값을 얻을 수 있다.
+
+프로덕션 환경과 비슷한 데이터 셋팅
+데이터베이스는 데이터가 어떻게 저장되어 있는 지와 얼마나 많은 양이 저장되어 있는 지에 따라서 성능 차이가 많이 나므로 실제 프로덕션 환경과 비슷하게 데이터양을 셋팅을 해두고 부하 테스트를 해야한다.
+그리고 각각의 아키텍처(EC2, RDS)  CPU와 메모리 사용률이 100퍼인 곳을 확인. 해당 지점이 병목 지점
+
+ngrinder, 스카우터 툴 
+
+ngrinder 구성 요소
+컨트롤러 - 성능 테스터가 테스트 스크립트를 생성하고 테스트 실행을 구성할 수 있도록 하는 웹 애플리케이션
+에이전트 - 부하를 생성하는 가상 사용자 생성기
+
+
+스카우터 설치 시 이슈 사항 및 처리 방법들
+
+Mac의 기본 Java 경로 /Library/Java/JavaVirtualMachines/  이외에는 java_home -V 에 JDK를 찾지 못함.
+java_home : mac에서 설치된 java 버전들을 관리하고 경로를 제공하는 유틸리티
+
+//홈브루 오라클 jdk 경로  11.0.26
+ /opt/homebrew/Cellar/openjdk@11
+ //아마존 jdk 경로
+/Users/gimmingyu/Library/Java/JavaVirtualMachines/corretto-17.0.14
+
+/usr/libexec/java_home -V 시 17만 표출 
+
+java_home에 기본 경로 이외에 jdk 등록하는 방법
+
+JAVA_HOME을 직접 설정
+.zprofile에서 수정해서 환경변수 영구적으로 적용
+export JAVA_HOME=/opt/homebrew/Cellar/openjdk@11/11.0.26/libexec/openjdk.jdk/Contents/Home
+export PATH=$JAVA_HOME/bin:$PATH
+
+
+Mac에서 다운로드한 파일이 "손상됨" 메시지를 표시할 때 
+
+xattr로 파일 무결성 확인 
+xattr -l scouter.client.app
+xattr macOS에서 파일의 확장 속성을 관리하는 명령어 -l 옵션을 사용하면 파일의 속성을 확인가능
+
+com.apple.quarantine: 0081;679a56d9;Chrome;
+com.apple.quarantine 속성은 macOS의 Gatekeeper(보안 시스템)가 부여하는 태그
+인터넷에서 다운로드된 파일은 자동으로 “격리(quarantine)” 상태가 됨
+
+xattr -d com.apple.quarantine ./scouter.client.app 로 해당 속성 제거
+
+-javaagent → Scouter 에이전트 적용 :: -javaagent:/Users/gimmingyu/MyProjects/util/scouter/agent.java/scouter.agent.jar
+-Dscouter.config → 설정 파일 지정 :: -Dscouter.config=/Users/gimmingyu/MyProjects/util/scouter/server/conf/scouter.conf 
+-Dobj_name → Scouter UI에서 표시될 이름 설정 :: -Dscouter.config=/Users/gimmingyu/MyProjects/util/scouter/server/conf/scouter.conf 
+--add-opens → Java 9 이상에서 내부 클래스 접근 허용 :: --add-opens java.base/java.lang=ALL-UNNAMED
+
+스카우터 실행 
+/Users/gimmingyu/MyProjects/util/scouter/server/startup.sh 실행 
+/Users/gimmingyu/MyProjects/util/scouter/agent.host/host.sh 실행
+
+패널 추가 
+TPS (Transaction Per Second) → 초당 요청 개수
+Active Requests → 현재 실행 중인 요청 개수 Active Service
+Response Time → 응답 시간(평균/최대)        Elapsed Time
+CPU Usage → 애플리케이션이 사용하는 CPU 비율  CPU - OSX
+Heap Memory Usage → JVM Heap 메모리 사용량
+	
+	

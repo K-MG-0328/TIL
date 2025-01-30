@@ -28,7 +28,7 @@ ngrinder 구성 요소
 에이전트 - 부하를 생성하는 가상 사용자 생성기
 
 ngrinder, 스카우터 설치 시 이슈 사항 및 처리 방법들
-Mac의 기본 Java 경로 /Library/Java/JavaVirtualMachines/  이외에는 java_home -V 에 JDK를 찾지 못함.
+Mac의 기본 Java 경로 /Library/Java/JavaVirtualMachines/  이외에는 /usr/libexec/java_home -V java_home -V 에 JDK를 찾지 못함.
 java_home : mac에서 설치된 java 버전들을 관리하고 경로를 제공하는 유틸리티
 
 //홈브루 오라클 jdk 경로  11.0.26

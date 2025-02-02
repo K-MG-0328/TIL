@@ -53,3 +53,34 @@ CustomAuthenticationFilter의 successfulAuthentication에서 아래의 처리들
         ✅ 성공 핸들러 실행 (추가적인 로직을 처리)
         this.getSuccessHandler().onAuthenticationSuccess(request, response, authResult);
 
+
+## oAuth2.0
+
+OAuth 2.0 Cllient  
+OAuth 2.0 ResourceServer  
+OAuth 2.0 Authorization Server  
+  
+### OAuth 2.0
+OAuth 2.0은 사용자의 자격 증명을 직접 공유하지 않고도, 제3자 애플리케이션(Client)이 특정 자원(Resource Server)에 안전하게 접근할 수 있도록 하는 인증 및 권한 부여 프로토콜  
+
+### OAuth 2.0 Client
+사용자의 인증을 요청하고, Access Token을 받아 API 요청을 수행하는 애플리케이션  
+  
+### OAuth 2.0 Resource Server
+보호된 리소스를 제공하는 서버 (Access Token을 사용하여 접근 가능)  
+
+### OAuth 2.0 Authorization Server
+사용자를 인증하고 Access Token을 발급하는 서버  
+
+### OAuth 2.0의 기본 흐름
+OAuth Client → Authorization Server (로그인 요청)
+OAuth Client ← Authorization Server (Access Token 발급)
+OAuth Client → Resource Server (Access Token과 함께 요청)
+Resource Server → OAuth Client (보호된 리소스 반환)
+
+### OIDC란
+클라이언트의 서비스를 사용자가 이용하기 위해서  
+        •	사용자 정보를 필요로 하지 않고 단순히 접근 권한만 필요한 경우 → OAuth 2.0  
+        •	사용자 정보(식별, 프로필 정보 등)가 필요한 경우 → OIDC (OAuth 2.0 + ID 토큰)  
+
+

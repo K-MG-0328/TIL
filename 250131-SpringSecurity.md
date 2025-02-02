@@ -54,7 +54,7 @@ CustomAuthenticationFilter의 successfulAuthentication에서 아래의 처리들
         this.getSuccessHandler().onAuthenticationSuccess(request, response, authResult);
 
 
-## oAuth2.0
+## OAuth2.0
 
 OAuth 2.0 Cllient  
 OAuth 2.0 ResourceServer  
@@ -82,5 +82,20 @@ Resource Server → OAuth Client (보호된 리소스 반환)
 클라이언트의 서비스를 사용자가 이용하기 위해서  
         •	사용자 정보를 필요로 하지 않고 단순히 접근 권한만 필요한 경우 → OAuth 2.0  
         •	사용자 정보(식별, 프로필 정보 등)가 필요한 경우 → OIDC (OAuth 2.0 + ID 토큰)  
+        
+### AccessToken에도 사용자정보가 담겨서 오는데 AccessToken으로 인증처리를 해도 되지 않을까?
+AccessToken에 사용자의 일부 정보가 포함될 수도 있지만, 서버 측 인증 로직을 그 AccessToken에만 의존해서 구현하는 것은 일반적으로 권장되지 않습니다.  
+Spring Security OAuth2 (또는 OIDC) 표준 방식을 따르면, 이미 **인증된 사용자 정보(Principal)**가 SecurityContext에 안전하게 관리되므로, 그대로 쓰면 됩니다.  
+추가 정보가 필요하다면 OAuth2SuccessHandler나 UserService 등에서 DB 조회 후 세션에 저장해서 쓰는 식으로 확장하시면 됩니다.  
+AccessToken 보다는 ID Token + UserInfo Endpoint를 통해 검증된 사용자 정보를 이용하는 편이 훨씬 간단하고 안전합니다.  
 
+### AccessToken을 왜 사용하면 안될까?
+AccessToken 내용이 항상 사용자 정보를 ‘충분히’ 담고 있지 않을 수 있습니다. 또한 공급자마다 토큰 형식, 키 회전(Key Rotation), 클레임 규칙이 달라서 유지보수 부담이 큼
 
+### 세션에서 사용자 정보를 가져오는 방법 
+1.	OAuth2 인증이 완료되면,
+        •	Spring Security가 Authentication 객체를 만들어서 SecurityContext에 저장합니다.  	
+        •	컨트롤러에서는 @AuthenticationPrincipal, 세션에 저장되어있는 SecurityContext(Authentication) 매개변수 등을 통해 사용자 정보(Principal, OAuth2User 등)에 접근할 수 있습니다.
+3.	추가적으로 세션에 저장해야 할 정보가 있다면,
+        •	OAuth2AuthenticationSuccessHandler(혹은 직접 정의한 CustomOAuth2SuccessHandler) 같은 인증 성공 후 실행되는 핸들러에서
+        •	**인자로 전달되는 Authentication**에서 사용자 정보를 꺼내서, 필요한 추가 데이터를 세션(HttpSession)에 담아주면 됩니다.

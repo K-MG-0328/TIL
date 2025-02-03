@@ -27,6 +27,11 @@ ngrinder 구성 요소
 컨트롤러 - 성능 테스터가 테스트 스크립트를 생성하고 테스트 실행을 구성할 수 있도록 하는 웹 애플리케이션
 에이전트 - 부하를 생성하는 가상 사용자 생성기
 
+ngrinder 실행
+java -jar ngrinder-controller-3.5.9-p1.war 실행
+run_agent 실행
+http://localhost:8080 으로 설정되어있음
+
 ngrinder, 스카우터 설치 시 이슈 사항 및 처리 방법들
 Mac의 기본 Java 경로 /Library/Java/JavaVirtualMachines/  이외에는 /usr/libexec/java_home -V java_home -V 에 JDK를 찾지 못함.
 java_home : mac에서 설치된 java 버전들을 관리하고 경로를 제공하는 유틸리티

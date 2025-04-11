@@ -69,7 +69,7 @@ Participant 는 트랜잭션 처리가 가능한지 확인 후, 가능한 경우
 <img width="335" alt="image" src="https://github.com/user-attachments/assets/36d6e3a1-852c-431d-bbc9-a22086f94c8a" />  
 
     
-2PC 단점
+2PC 단점  
 성능 저하: 참여자의 응답을 기다리는 동안 블로킹(Block) 상태가 발생하여 성능이 떨어질 수 있습니다.  
 단일 장애점(Single point of failure): Coordinator에 문제가 발생하면 시스템이 중단될 수 있습니다.  
 장애 복구가 복잡: Coordinator 또는 Participant의 장애 시 복구가 어려워질 수 있습니다.  

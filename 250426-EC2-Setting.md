@@ -61,5 +61,65 @@ amazon-cloudwatch-agent, logrotate
 sudo timedatectl set-timezone Asia/Seoul
 ```
 
-스토리지 확인 및 마운트
-프로젝트 환경설정
+### 프로젝트 환경설정
+#### API 서버  
+**java 17**    
+```
+sudo dnf install -y java-17-amazon-corretto-devel
+```
+
+**docker 25.0.8**  
+```
+sudo dnf install -y docker
+sudo systemctl start docker
+sudo systemctl enable docker
+sudo usermod -aG docker admin
+```
+
+**docker-compose 2.35.1**  
+```
+sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+```
+curl -L: URL에서 파일 다운로드  
+$(uname -s)-$(uname -m): 시스템 아키텍처에 맞는 바이너리 선택 (예: Linux-x86_64)  
+
+#### 빌드 배포 서버 
+**java 17**    
+```
+sudo dnf install -y java-17-amazon-corretto-devel
+```
+
+**docker 25.0.8**  
+```
+sudo dnf install -y docker
+sudo systemctl start docker
+sudo systemctl enable docker
+sudo usermod -aG docker admin
+```
+
+**jenkins**
+```
+sudo wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo
+sudo rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
+
+키 목록 확인  
+rpm -qi gpg-pubkey
+
+젠킨스 설치 
+sudo yum install -y jenkins
+
+sudo systemctl start jenkins
+sudo systemctl enable jenkins
+```
+
+**젠킨스 해줘야할 것들**
+```
+젠킨스 계정 확인
+/etc/passwd
+
+젠킨스 계정을 도커 그룹에 추가  
+sudo usermod -aG docker jenkins
+
+도커 그룹 계정 확인
+/etc/group
+```

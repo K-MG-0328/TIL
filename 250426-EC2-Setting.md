@@ -46,15 +46,11 @@ chown: 파일 또는 디렉토리의 소유자(owner)와 그룹(group)을 변경
 sudo dnf install 유틸리티 -y
 ```
 **시스템 관리 유틸리티**    
-vim, htop, curl, wget, git  
-**네트워크 유틸리티**    
-net-tools, traceroute, tcpdump, bind-utils  
-**보안 유틸리티**  
-openssh-clients, firewalld  
+htop, curl, git  
 **파일 유틸리티**  
-tree, unzip, zip, rsync, lsof  
+tree 
 **모니터링 및 로깅**   
-amazon-cloudwatch-agent, logrotate   
+amazon-cloudwatch-agent
 
 #### 시간대 설정
 ```

@@ -76,5 +76,79 @@
 	    toUser.increaseBalance(amount);
 	}
 
+### 위 송금 코드에서 데드락은 어떻게 해결할 수 있나요?
+**자원 획득 순서를 통일**하는 것이 가장 안전한 방법입니다. ID가 작은 사용자를 먼저 잠그도록 강제하면 어떤 트랜잭션도 같은 순서로 락을 획득하므로 순환 대기가 생기지 않습니다.
+
+```java
+@Transactional
+public void transferMoney(Long fromUserId, Long toUserId, int amount) {
+    Long firstId = Math.min(fromUserId, toUserId);
+    Long secondId = Math.max(fromUserId, toUserId);
+    userRepository.findByIdForUpdate(firstId);
+    userRepository.findByIdForUpdate(secondId);
+    // 이후 비즈니스 로직
+}
+```
+
+### 데드락 발생 시 어떻게 디버깅하나요?
+**1. 스레드 덤프(Java)**
+```bash
+jstack <pid>           # 스레드 스택을 출력
+# 또는
+kill -3 <pid>          # JVM이 stdout으로 덤프
+```
+출력에서 `Found one Java-level deadlock:` 같은 섹션을 찾으면 어떤 스레드가 어떤 락을 들고 무엇을 기다리는지 보입니다.
+
+**2. 데이터베이스 데드락**
+- MySQL(InnoDB): `SHOW ENGINE INNODB STATUS\G` → `LATEST DETECTED DEADLOCK` 섹션. InnoDB는 데드락을 자동 감지하고 한쪽 트랜잭션을 롤백시킵니다.
+- PostgreSQL: `deadlock_timeout`(기본 1초) 후 감지되어 한쪽이 `40P01` 에러로 종료됩니다.
+- 두 DB 모두 데드락 자체는 자동으로 풀어주지만, 애플리케이션은 **재시도 로직**을 갖춰야 합니다.
+
+### 데드락은 어떻게 감지하나요? (Wait-for Graph)
+운영체제·DBMS는 "어떤 트랜잭션이 어떤 락을 기다리는가"를 그래프로 관리하다 **사이클이 발견되면 데드락**으로 판단합니다.
+
+```mermaid
+flowchart LR
+    A[Tx A<br/>holds X, wants Y] --> B[Tx B]
+    B[Tx B<br/>holds Y, wants X] --> A
+```
+
+A → B → A의 사이클이 곧 데드락입니다. 감지된 시점에 비용이 적은 트랜잭션을 골라 롤백시키는 것이 일반적입니다.
+
+### 데드락 재현용 테스트 코드
+```java
+Object lock1 = new Object();
+Object lock2 = new Object();
+
+Thread t1 = new Thread(() -> {
+    synchronized (lock1) {
+        try { Thread.sleep(100); } catch (InterruptedException e) {}
+        synchronized (lock2) {
+            System.out.println("t1 done");
+        }
+    }
+});
+
+Thread t2 = new Thread(() -> {
+    synchronized (lock2) {
+        try { Thread.sleep(100); } catch (InterruptedException e) {}
+        synchronized (lock1) {  // 순서를 반대로 잡음 → 데드락
+            System.out.println("t2 done");
+        }
+    }
+});
+
+t1.start(); t2.start();
+```
+
+이 코드를 실행한 뒤 `jstack`을 떠보면 스레드 덤프에서 데드락 검출 로그를 직접 확인할 수 있습니다.
+
+### 락 획득에 타임아웃을 두면 무엇이 좋은가요?
+무한 대기 대신 일정 시간 후 실패하도록 만들면 데드락이 발생해도 시스템이 멈추지 않고 빠르게 회복됩니다.
+- Java: `ReentrantLock.tryLock(timeout, unit)`
+- JDBC/JPA: `javax.persistence.lock.timeout` 힌트
+- DB 자체: `innodb_lock_wait_timeout` (MySQL, 기본 50초)
+
+타임아웃 + 재시도(backoff) 조합이 데드락 대응의 실전 패턴입니다.
 
 

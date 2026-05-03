@@ -128,3 +128,57 @@ worstCase의 경우 O(n)의 시간복잡도를 가집니다.
   
 #### 16-2 이중해싱이 무엇인지 설명해주세요
 이중 해싱의 경우에는 충돌이 났을 경우 두번 째 해시함수를 이용해 나온 값으로 탐사의 폭을 설정하는 것을 말합니다.
+
+### 17. 자료구조별 시간 복잡도 한눈에
+| 자료구조 | 조회 | 검색 | 삽입 | 삭제 | 비고 |
+|---|---|---|---|---|---|
+| Array | O(1) | O(N) | O(N) | O(N) | 인덱스 접근만 O(1) |
+| Dynamic Array (ArrayList) | O(1) | O(N) | 평균 O(1) (끝), O(N) (중간) | O(N) | resize 시 O(N) |
+| LinkedList | O(N) | O(N) | O(1) (위치 알 때) | O(1) | 양방향이면 끝 접근 O(1) |
+| Stack | O(1) (top) | O(N) | O(1) | O(1) | LIFO |
+| Queue | O(1) | O(N) | O(1) | O(1) | FIFO |
+| Priority Queue (Heap) | O(1) (peek) | O(N) | O(log N) | O(log N) | 완전 이진 트리 |
+| BST (균형) | - | O(log N) | O(log N) | O(log N) | 편향 시 O(N) |
+| AVL / Red-Black | - | O(log N) | O(log N) | O(log N) | 항상 균형 보장 |
+| Hash Table | - | O(1) 평균 | O(1) 평균 | O(1) 평균 | 최악 O(N) (충돌 집중) |
+
+### 18. AVL 트리와 Red-Black 트리는 어떻게 다른가요?
+둘 다 BST의 편향을 막기 위한 자가 균형 이진 탐색 트리입니다.
+
+| 구분 | AVL Tree | Red-Black Tree |
+|---|---|---|
+| 균형 조건 | 좌우 높이 차 ≤ 1 (엄격) | 5가지 색 규칙 (느슨) |
+| 검색 | 더 빠름 (더 균형) | 비교적 느림 |
+| 삽입/삭제 | 회전 더 자주 발생 | 회전 적음 |
+| 사용처 | 검색이 많은 환경 | 삽입/삭제가 많은 환경 |
+| Java 표준 라이브러리 | (없음) | `TreeMap`, `TreeSet`의 내부 구현 |
+
+### 19. Java 표준 자료구조 매핑
+| 인터페이스/클래스 | 내부 구현 | 시간복잡도 핵심 | 사용 시점 |
+|---|---|---|---|
+| `ArrayList` | Dynamic Array | get O(1), 끝 add O(1)* | 인덱스 접근/순회 위주 |
+| `LinkedList` | Doubly LinkedList | get O(N), add/remove O(1) | Queue/Deque 용도 (실무에선 잘 안 씀) |
+| `ArrayDeque` | 순환 배열 | push/pop O(1) | Stack/Queue 둘 다 (Stack 클래스 대체) |
+| `HashMap` | Hash Table + Tree | put/get 평균 O(1) | 일반 키-값 |
+| `LinkedHashMap` | HashMap + 이중 연결 리스트 | put/get O(1) | 삽입 순서 유지, LRU 캐시 |
+| `TreeMap` | Red-Black Tree | put/get O(log N) | 정렬된 순서 필요 |
+| `HashSet` / `TreeSet` | HashMap / TreeMap | 동일 | 중복 제거 |
+| `PriorityQueue` | Binary Heap | offer/poll O(log N) | 우선순위 처리 |
+
+> *ArrayList의 끝 add는 amortized O(1). resize 시점에는 O(N)이지만 평균적으로는 상수 시간.
+
+### 20. 메모리 캐시 지역성(Locality)의 영향
+배열은 데이터가 연속된 메모리에 있어 CPU 캐시 라인(보통 64B)에 한 번에 여러 요소가 올라옵니다. 반복문 순회 시 거의 캐시 히트.
+
+LinkedList는 노드가 힙에 흩어져 있어 다음 노드로 갈 때마다 캐시 미스가 잦습니다. **시간 복잡도가 같아도 실제 성능은 ArrayList가 훨씬 빠를 때가 많은 이유**입니다.
+
+> 실무에서 "LinkedList가 중간 삽입에 빠르다"는 이론은 위치를 알고 있을 때만 성립하며, 보통은 위치 탐색에 O(N)이 들어 ArrayList의 shift보다 느린 경우가 많습니다.
+
+### 21. 데이터 규모별 자료구조 선택 가이드
+- 수십~수백 개: 어떤 자료구조든 차이 미미 → 가독성 우선
+- 수만 개 이상 검색: HashMap/HashSet
+- 정렬 순서 + 범위 쿼리: TreeMap (`subMap`, `floorKey`)
+- 우선순위 작업: PriorityQueue
+- 스레드 안전 + 동시성: `ConcurrentHashMap`, `CopyOnWriteArrayList`, `BlockingQueue`
+- 큰 unique 카운트(근사 OK): HyperLogLog (Redis)
+- 시간 정렬 인덱스: TreeMap 또는 Sorted Set (Redis ZSet)

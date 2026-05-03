@@ -40,6 +40,63 @@ volatile로 선언된 변수는 volatile 키워드로 선언한 변수 기준으
 ## CAS(Compare-And-Set)은 무엇인가?
 Compare-And-Set(CAS)은 멀티스레드 환경에서 원자적으로(atomic) 값을 갱신하기 위한 기법입니다. 주어진 ‘기대 값(expected value)’과 메모리에 저장된 ‘현재 값(current value)’을 비교하여, 두 값이 일치하면 새 값(new value)으로 바꾸고 성공을 반환하며, 불일치하면 아무 변경 없이 실패를 반환합니다. 이 과정을 단 한 번의 불가분한(atomic) 연산으로 보장하기 때문에, 락(lock) 없이도 안전한 동시성 제어(특히 카운터 증가, 연결 리스트 수정 등)에 널리 사용됩니다. 
 
+## AtomicInteger는 어떻게 동작하나요?
+`java.util.concurrent.atomic` 패키지의 클래스들은 내부적으로 CAS를 루프로 감싸 실패하면 재시도하는 방식(spin)으로 동작합니다.
 
+```java
+AtomicInteger counter = new AtomicInteger(0);
 
+// incrementAndGet의 의사 구현
+int expected, next;
+do {
+    expected = counter.get();
+    next = expected + 1;
+} while (!counter.compareAndSet(expected, next));
+```
 
+* `synchronized`와 달리 OS 스레드 블록·해제가 없으므로 경합이 적을 때 훨씬 빠릅니다.
+* 경합이 매우 심하면 spin 비용이 커질 수 있어 Java 8+에서는 `LongAdder`/`DoubleAdder`처럼 셀을 분산해 경합을 줄이는 클래스도 제공됩니다.
+
+```java
+LongAdder adder = new LongAdder();
+adder.increment();         // 카운터 증가만 필요할 때 AtomicLong보다 빠름
+long total = adder.sum();  // 합산 시점에 모든 셀을 합쳐 반환
+```
+
+## CAS의 ABA 문제란?
+스레드 A가 값을 읽고(0) 비교 갱신을 준비하는 사이에, 다른 스레드가 0 → 1 → 0으로 바꿔 놓으면, A는 여전히 "0"이라 보고 갱신을 성공시킵니다. 단순 값만 비교하기 때문에 **중간에 값이 바뀌었다 원래대로 돌아온 상황**을 감지하지 못하는 게 ABA 문제입니다.
+
+연결 리스트의 노드 포인터처럼 값이 같아도 객체의 정체가 다르면 큰 문제가 됩니다.
+
+해결책으로 **버전(스탬프)** 을 함께 비교합니다.
+
+```java
+AtomicStampedReference<String> ref = new AtomicStampedReference<>("A", 0);
+int[] stampHolder = new int[1];
+String value = ref.get(stampHolder);
+boolean updated = ref.compareAndSet(value, "B", stampHolder[0], stampHolder[0] + 1);
+```
+
+값이 같더라도 stamp가 바뀌었다면 CAS는 실패합니다. `AtomicMarkableReference`도 비슷한 용도(boolean mark)로 사용됩니다.
+
+## volatile, synchronized, Lock, Atomic의 비교
+| 메커니즘 | 가시성 | 원자성 | 재배치 방지 | 비용 |
+|---|---|---|---|---|
+| `volatile` | O | X (단일 read/write만) | O | 가장 저렴 |
+| `synchronized` | O | O | O | 경합 시 OS 블록 |
+| `ReentrantLock` | O | O | O | synchronized와 유사 + 추가 기능(tryLock, fairness) |
+| `Atomic*` (CAS) | O | O | O | 경합 적을 때 매우 빠름, 심하면 spin 부담 |
+
+* 단순 가시성만 필요하면 `volatile` (예: 종료 플래그)
+* 복합 연산(읽고-수정하고-쓰기)이 필요하면 `Atomic*` 또는 락
+* 여러 변수를 함께 보호해야 한다면 `synchronized`/`Lock` (CAS는 단일 변수만 가능)
+
+## JMM과 happens-before 관계
+Java Memory Model(JMM)은 "어떤 쓰기 작업이 어떤 읽기 작업에 보이는지"를 happens-before 관계로 정의합니다. 대표적인 happens-before:
+- 같은 스레드 내의 프로그램 순서
+- `volatile` 쓰기 → 이후의 같은 변수 읽기
+- `synchronized` 블록 종료 → 같은 락 획득
+- `Thread.start()` → 그 스레드 내부 첫 동작
+- 그 스레드의 마지막 동작 → 다른 스레드의 `join()` 반환
+
+이 규칙을 만족하지 않는 두 작업은 메모리에서 어느 순서로 보이는지 보장되지 않습니다. 동기화 도구를 쓰는 진짜 이유는 락 자체가 아니라 happens-before 관계를 설정해 가시성과 순서를 보장하는 것입니다.

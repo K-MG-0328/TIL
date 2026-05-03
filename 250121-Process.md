@@ -74,3 +74,40 @@ Context Switch란 한 프로세스에서 다른 프로세스로 CPU의 제어권
 IPC는 크게 공유 메모리 모델과 메시지 전달 모델로 나눌 수 있습니다.
 공유 메모리 모델은 주소 공간의 일부를 공유하며 공유한 메모리 영역에 read/write를 통해 통신하게 되는데 예시로는 공유메모리와 POSIX가 있습니다. 
 메시지 전송 모델의 경우에는 kernel을 통해 send/receive 연산을 통해 데이터 전송을 합니다. 예시로는 Pipe, socket, message queue 등이 있습니다.
+
+### 17. 프로세스와 스레드의 메모리 구조를 그림으로 보면?
+```mermaid
+flowchart TB
+    subgraph P["Process"]
+        direction TB
+        Code["Code (Text)<br/>실행 코드"]
+        Data["Data<br/>전역/static 변수"]
+        Heap["Heap<br/>동적 할당"]
+        subgraph T["Threads (스택만 분리)"]
+            S1["Thread 1<br/>Stack + PC"]
+            S2["Thread 2<br/>Stack + PC"]
+            S3["Thread N<br/>Stack + PC"]
+        end
+    end
+```
+Code/Data/Heap은 모든 스레드가 공유하고, Stack과 PC Register만 스레드별로 분리된다는 점이 핵심입니다.
+
+### 18. Context Switch의 비용은 어디서 오나요?
+* **레지스터 저장/복구**: 현재 PC, 범용 레지스터, 스택 포인터를 PCB에 저장하고 다음 프로세스 것을 복구
+* **TLB(Translation Lookaside Buffer) 무효화**: 가상→물리 주소 매핑 캐시가 프로세스마다 다르므로 비워야 함
+* **CPU 캐시 미스**: 새 프로세스의 데이터가 L1/L2 캐시에 없어 캐시 워밍업 비용 발생
+* **모드 전환**: 사용자 모드 ↔ 커널 모드 전환
+
+스레드 간 Context Switch는 같은 프로세스 내라 페이지 테이블·캐시가 공유되어 비용이 훨씬 낮습니다(보통 프로세스 간보다 수 배 빠름).
+
+### 19. IPC 방법별 특징은?
+| 방식 | 통신 단위 | 양방향 | 같은 호스트만? | 사용 예 |
+|---|---|---|---|---|
+| Pipe (익명) | 바이트 스트림 | 단방향 | O (부모-자식) | shell `\|` |
+| Named Pipe (FIFO) | 바이트 스트림 | 단방향 | O | `mkfifo` |
+| Message Queue | 메시지 단위 | 양방향 | O | 프로세스 간 큐잉 |
+| Shared Memory | 메모리 영역 | 양방향 | O | 가장 빠름, 동기화 필요 |
+| Socket (TCP/UDP) | 바이트/패킷 | 양방향 | X (네트워크) | 클라이언트-서버 |
+| Signal | 정수 ID | 단방향 | O | `kill`, 인터럽트 |
+
+공유 메모리는 가장 빠르지만 세마포어·뮤텍스로 직접 동기화해야 합니다. 소켓은 같은 호스트일 때도 일관된 모델을 제공하지만 커널을 거치는 비용이 있습니다.

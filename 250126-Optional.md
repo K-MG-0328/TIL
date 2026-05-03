@@ -128,3 +128,40 @@ public Optional<String> getCity(User user) {
 null 대신 빈 Optional 반환 : Optional 자체가 null이 되지 않도록 항상 **Optional.empty()**를 반환해야 합니다.
 
 get() 사용 자제 : get() 메서드는 값이 없을 경우 예외를 발생시키므로, 안전한 대안을 사용하는 것이 좋습니다.
+
+## Optional 안티패턴 정리
+| 안티패턴 | 문제 | 권장 |
+|---|---|---|
+| `if (opt.isPresent()) opt.get()` | null 체크와 동일한 형태로 회귀 | `ifPresent`, `map`, `orElse` 사용 |
+| 필드/매개변수에 Optional 사용 | 직렬화·메모리 오버헤드, 또 다른 null 가능 | 필드는 그대로, 반환 시 Optional로 감싸기 |
+| `Optional.of(possiblyNull)` | NPE 위험 | `Optional.ofNullable` |
+| `opt.orElse(expensiveCall())` | 값이 있어도 항상 실행됨 | 비용이 크면 `orElseGet(() -> ...)` |
+| Collection을 Optional로 감싸기 | 빈 컬렉션이 이미 "값 없음" 표현 | `Collections.emptyList()` 반환 |
+
+## orElse vs orElseGet의 차이를 코드로
+```java
+public String fetchDefault() {
+    System.out.println("expensive call");
+    return "default";
+}
+
+Optional<String> opt = Optional.of("hello");
+opt.orElse(fetchDefault());        // "expensive call" 출력 → 값이 있어도 실행됨
+opt.orElseGet(this::fetchDefault); // 출력 없음 → 값이 있으므로 실행 안 됨
+```
+
+기본값 생성 비용이 크다면 `orElseGet`을 써야 불필요한 호출을 피할 수 있습니다.
+
+## Stream과 함께 사용할 때
+`Optional`을 반환하는 메서드를 Stream에 흘릴 때는 `flatMap`이 유용합니다.
+
+```java
+List<Long> userIds = List.of(1L, 2L, 3L);
+List<String> names = userIds.stream()
+    .map(userRepository::findById)        // Stream<Optional<User>>
+    .flatMap(Optional::stream)            // 비어있는 Optional 제거
+    .map(User::getName)
+    .toList();
+```
+
+`Optional::stream`은 Java 9에 추가된 메서드로, 값이 있으면 1개짜리 스트림, 없으면 빈 스트림을 반환해 자연스럽게 필터링됩니다.

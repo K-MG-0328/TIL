@@ -8,6 +8,21 @@
 * 동기/비동기: 기본은 비동기(Mono/Flux로 결과 처리). 동기 스타일도 가능
 * 장점: 적은 스레드로 많은 동시 요청 처리, 높은 확장성.
 
+```mermaid
+flowchart LR
+    subgraph MVC["Spring MVC (Thread-per-Request)"]
+        R1[Request 1] --> T1[Thread 1<br/>BLOCKED on I/O]
+        R2[Request 2] --> T2[Thread 2<br/>BLOCKED on I/O]
+        R3[Request N] --> TN[Thread N<br/>BLOCKED on I/O]
+    end
+    subgraph WF["Spring WebFlux (Event Loop)"]
+        WR1[Request 1] --> EL[Event Loop<br/>소수의 스레드]
+        WR2[Request 2] --> EL
+        WR3[Request N] --> EL
+        EL -.논블로킹.-> IO[(I/O Resource)]
+    end
+```
+
 #### 블록킹/논블록킹 I/O와 동기/비동기 비슷한 개념이지만 어떠한 차이가 있을까?
 동기 vs 비동기는 호출자(Caller) 관점에서의 개념이고 호출자가 요청의 결과를 기다리는지 여부에 대한 것이다.
 블로킹 vs 논블로킹은 스레드(Thread) 관점에서의 개념이며 I/O 작업 중 스레드가 결과를 기다리며 멈춰 있는지 여부에 대한 것이다. 
@@ -32,11 +47,82 @@ Flux는 0~N개의 다중 개념
 파이프라인은 Mono/Flux 객체에 연산자(operators)를 체이닝(chain)하여 데이터 흐름을 선언적으로 정의한 구조이며 "어떻게" 처리할지 대신 "무엇을" 처리할지 정의
 
 #### 연산자는 무엇이고 "어떻게" 처리할지 대신 "무엇을" 처리할지 정의한다는 것은 어떤 걸 의미하나요?
+연산자(operator)는 Mono/Flux가 발행하는 데이터에 변환·필터·결합 등을 적용하는 함수다. 연산자를 체이닝해 "데이터가 도착하면 이렇게 변형하고, 다음 단계로 넘긴다"는 흐름을 선언한다. 명령형 코드처럼 직접 스레드를 잡고 결과를 기다렸다가 처리하지 않고, 데이터가 흐를 때 적용될 규칙만 등록해두는 방식이라 "무엇을" 처리할지 정의한다고 표현한다. 실제 실행은 구독(subscribe)이 일어날 때 시작된다.
 
+자주 쓰이는 연산자는 다음과 같다.
+
+| 연산자 | 역할 | 예시 |
+|---|---|---|
+| `map` | 1:1 동기 변환 | `userId -> userName` |
+| `flatMap` | 1:N 또는 비동기 변환 (반환값이 Mono/Flux일 때) | `userId -> findUserById(id)` |
+| `filter` | 조건부 통과 | `user -> user.isActive()` |
+| `zip` | 여러 스트림을 하나로 합침 | `Mono.zip(userMono, orderMono)` |
+| `onErrorResume` | 에러 시 대체 스트림 | 외부 API 실패 시 캐시 반환 |
+| `subscribeOn` / `publishOn` | 실행 스레드(Scheduler) 지정 | 블로킹 호출은 별도 스케줄러로 |
+
+```java
+Mono<UserDto> findUserDto(Long userId) {
+    return userRepository.findById(userId)            // Mono<User>
+        .filter(User::isActive)                        // 비활성 사용자 제외
+        .flatMap(user -> orderRepository
+            .findRecentByUser(user.getId())            // Mono<Order>
+            .map(order -> UserDto.of(user, order)))    // User + Order 합치기
+        .switchIfEmpty(Mono.error(new NotFoundException()));
+}
+```
+
+`map`은 동기 변환이고, `flatMap`은 변환 결과가 또 다른 Mono/Flux일 때 평탄화하기 위해 쓴다는 차이가 핵심이다. `flatMap` 자리에 `map`을 쓰면 `Mono<Mono<T>>`처럼 중첩이 생긴다.
 
 #### 핸들러와 라우터
+WebFlux는 컨트롤러를 정의하는 두 가지 방식을 지원한다.
 
+**1. Annotation 방식 (Spring MVC와 유사)**
+```java
+@RestController
+@RequestMapping("/users")
+public class UserController {
 
+    @GetMapping("/{id}")
+    public Mono<UserDto> getUser(@PathVariable Long id) {
+        return userService.findById(id);
+    }
+}
+```
 
+**2. Functional 방식 (RouterFunction + HandlerFunction)**
+```java
+@Configuration
+public class UserRouter {
+
+    @Bean
+    public RouterFunction<ServerResponse> routes(UserHandler handler) {
+        return RouterFunctions.route()
+            .GET("/users/{id}", handler::getUser)
+            .POST("/users", handler::createUser)
+            .build();
+    }
+}
+
+@Component
+public class UserHandler {
+
+    public Mono<ServerResponse> getUser(ServerRequest request) {
+        Long id = Long.valueOf(request.pathVariable("id"));
+        return userService.findById(id)
+            .flatMap(user -> ServerResponse.ok().bodyValue(user))
+            .switchIfEmpty(ServerResponse.notFound().build());
+    }
+}
+```
+
+라우터는 "어떤 URL이 어떤 함수로 매핑되는지"를 선언하고, 핸들러는 실제 비즈니스 로직을 담당한다. annotation 방식이 익숙하지만 functional 방식은 라우팅과 처리 로직이 분리되어 테스트가 쉽고, 프로그램적으로 라우팅을 조립할 수 있다는 장점이 있다.
+
+#### WebFlux를 쓰면 항상 이득인가?
+아니다. 다음과 같은 경우에는 오히려 MVC가 낫다.
+* JDBC, 동기 HTTP 클라이언트(RestTemplate), 동기 파일 I/O 등 블로킹 라이브러리를 사용해야 한다면 이벤트 루프 스레드가 블록되어 전체 성능이 망가질 수 있다. 부득이 사용한다면 `Schedulers.boundedElastic()` 같은 별도 스케줄러로 격리해야 한다.
+* CPU 집약적 작업이 많은 서비스는 논블록킹 I/O의 이득이 거의 없다.
+* 팀이 reactive 스택에 익숙하지 않다면 디버깅 비용(스택 트레이스가 의미 없게 끊김)이 크다.
+
+논블로킹의 이득은 **"많은 동시 요청이 I/O 대기로 시간을 보낼 때"** 가장 크다. 외부 API를 여러 개 호출하는 게이트웨이, 실시간 스트리밍, 다수의 WebSocket 연결 같은 시나리오가 대표적이다.
 
 

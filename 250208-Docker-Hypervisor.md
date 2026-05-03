@@ -27,5 +27,61 @@ Guset OS : Host OS 위에서 실행되는 가상 운영체제, 가상 머신 또
 실행환경 : 호스트 OS의 커널을 공유(호스트 OS가 리눅스 일 경우 리눅스 컨테이너만 실행)   
 격리수준 : 컨테이너는 커널 공유하고 프로세스, 네트워크, 파일 시스템만 격리   
 
+## 구조 비교 다이어그램
+```mermaid
+flowchart TB
+    subgraph BM["베어메탈"]
+        H1[Hardware] --> O1[Host OS]
+        O1 --> A1[App]
+    end
+    subgraph VM["하이퍼바이저"]
+        H2[Hardware] --> HY[Hypervisor]
+        HY --> G1[Guest OS]
+        HY --> G2[Guest OS]
+        G1 --> A2[App]
+        G2 --> A3[App]
+    end
+    subgraph DK["컨테이너 (Docker)"]
+        H3[Hardware] --> O3[Host OS Kernel]
+        O3 --> D[Docker Engine]
+        D --> C1[Container<br/>App + Lib]
+        D --> C2[Container<br/>App + Lib]
+    end
+```
 
+## 성능·비용 비교
+| 항목 | 베어메탈 | VM (하이퍼바이저) | 컨테이너 (Docker) |
+|---|---|---|---|
+| 부팅 시간 | 분 단위 | 수십 초 | 수 초 미만 |
+| 디스크 사용 | 단일 OS만 | OS + 앱 (수 GB ~) | 이미지 레이어 공유 (수십 MB ~) |
+| 메모리 오버헤드 | 없음 | OS당 수백 MB ~ GB | 거의 없음 |
+| CPU 오버헤드 | 0% | 5~15% (가상화 비용) | 1% 미만 |
+| 격리 수준 | 단일 점유 | 강력 (커널 격리) | 약함 (커널 공유) |
+| 이식성 | 낮음 | OS 전체 이미지 단위 | 이미지 단위로 매우 높음 |
+| 라이선스 비용 | OS 한 벌 | OS마다 라이선스 | 컨테이너 자체는 무료 |
+
+## 어떤 상황에 무엇을 쓰나요?
+- **베어메탈**: 최고 성능이 필요한 DBMS, 고성능 ML 학습, 강한 보안 격리(전용 호스트)
+- **VM**: 다른 OS가 필요한 워크로드(Linux 호스트에 Windows 앱), 강력한 격리, 레거시 시스템 통합
+- **컨테이너**: 마이크로서비스, CI/CD, 개발 환경 통일, 빠른 스케일링
+
+실무에서는 보통 **VM 위에 컨테이너**를 띄우는 하이브리드 형태입니다. AWS EC2(VM) 위에서 Docker 컨테이너를 운영하는 식입니다.
+
+## 도커 이미지 vs 컨테이너
+- **이미지(Image)**: 실행 가능한 모든 파일과 메타데이터를 담은 읽기 전용 템플릿. Dockerfile로 빌드.
+- **컨테이너(Container)**: 이미지를 실행한 인스턴스. 이미지 위에 쓰기 가능한 레이어가 추가된 상태.
+
+```bash
+docker build -t myapp:1.0 .       # Dockerfile → 이미지
+docker run -d --name app1 myapp:1.0  # 이미지 → 컨테이너
+docker run -d --name app2 myapp:1.0  # 같은 이미지로 또 다른 컨테이너
+```
+
+이미지는 읽기 전용 레이어로 쌓여 있어 같은 베이스 이미지를 쓰면 디스크 사용을 크게 절약합니다.
+
+## 컨테이너 보안의 한계
+호스트 커널을 공유하기 때문에 **커널 취약점이 발생하면 컨테이너 격리가 뚫릴 수 있습니다**. 강한 격리가 필요한 경우 다음 방법을 추가합니다.
+- **rootless container** (root 권한 없이 실행)
+- **gVisor**, **Kata Containers** (사용자 공간 커널, 경량 VM 등)
+- **AppArmor / SELinux / seccomp** 프로파일
 
